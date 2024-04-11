@@ -1,0 +1,204 @@
+---
+title: "Analysis of California Real Estate"
+author: "Leyan Tang"
+date: "2024-04-15"
+output:
+     html_document:
+          toc: true
+          toc_depth: 2
+          toc_float: false
+          theme: simplex
+---
+
+```{r warning=FALSE,message=FALSE, echo=FALSE}
+## Load the necessary data for data manipulation and data visualization
+#install.packages('maps')
+#install.packages('ggspatial')
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(maps)
+library(ggspatial) # For enhancing spatial visualizations
+library(viridis)
+```
+
+```{r warning=FALSE, echo=FALSE}
+## Load the dataset in csv format into R
+housing <- read.csv("housing.csv")
+```
+
+```{r warning=FALSE, echo=FALSE}
+# Data Cleaning and Preparation
+housing <- housing %>%
+  mutate(
+    # Convert house value to thousands of dollars
+    median_house_value = median_house_value / 10^3,
+    # Convert income value to thousands of dollars
+    median_income = median_income * 10) %>%
+  na.omit()  # Remove any rows with missing data
+
+# Ensure the longitude and latitude data are correctly formatted for mapping
+housing <- housing %>%
+  filter(longitude < -114, longitude > -124, latitude > 32, latitude < 42)
+
+# Prepare California map data for visualization
+california_map <- map_data("county", region = "california")
+
+# Ensure that ocean_proximity is a factor with meaningful levels
+housing$ocean_proximity <- factor(housing$ocean_proximity)
+
+# Reorder the levels of ocean_proximity
+housing$ocean_proximity <- factor(
+  housing$ocean_proximity,
+  levels = c("INLAND", "NEAR BAY", "<1H OCEAN", "NEAR OCEAN", "ISLAND")
+)
+```
+
+## Executive Summary {.tabset}
+This report offers an in-depth analysis of California’s real estate landscape, emphasizing the interplay between geographical location, economic status, and demographic trends. By weaving data into narratives, it tries to explore the geographical distribution of housing values, the relationship between median income and housing values, and the age group distribution in relation to ocean proximity. The insights aim to inform stakeholders, including real estate investors and community planners about the underlying patterns that shape the housing market in California.
+
+### Story 1
+
+```{r fig.width=12, fig.height=8, warning=FALSE, echo=FALSE}
+# Adjust the color gradient to a more appealing set of colors
+color_palette <- c("#fee8c0", "#fdbb84", "#fc8d59", "#ef6548", "#d7301f", "#990000")
+
+# Plot the map with adjusted colors and figure dimensions
+ggplot() +
+  geom_polygon(data = california_map, aes(x = long, y = lat, group = group), fill = "lightgrey", color = "white") +
+  geom_point(data = housing, aes(x = longitude, y = latitude, color = median_house_value, shape = ocean_proximity), alpha = 0.8, size = 2) +
+  scale_color_gradientn(colors = color_palette, name = "Median House Value ($ in thousands)") +
+  labs(title = "Geographical Distribution of Housing Values in California by Ocean Proximity",
+       x = "", y = "",
+       shape = "Ocean Proximity") +
+  coord_fixed(1) +
+  theme_minimal() +
+  theme(legend.position = "right",  # Adjust legend position for clarity
+        legend.title = element_text(size = 14, face = 'bold'), 
+        legend.text = element_text(size = 12), 
+        plot.title = element_text(size = 20, face = 'bold'),  
+        axis.text = element_text(size = 14), 
+        axis.title = element_text(size = 16)) 
+```
+
+#### Significance of Location
+In the realm of real estate, few factors are as influential as location. This is particularly evident in the state of California, where the proximity to the ocean exerts a significant impact on housing values. A detailed examination of the provided visualization reveals a compelling story: as properties approach the coastline, their valuations rise substantially, underscoring the premium placed on ocean-adjacent real estate.
+
+#### Insights from the Visualization
+The visualization illustrates a discernible pattern, with darker hues representing higher property values clustered along the coastal regions. This gradient of value diminishes as one moves inland, with lighter shades signifying more modestly priced homes. Notably, properties within less than an hour from the ocean still maintain higher values than those located further away, illustrating a tiered valuation system based on proximity to the coast. Additionally, isolated regions such as islands command exceptional prices, highlighting their exclusivity and desirability.
+
+It is also apparent from the data that areas near bays, while not as highly valued as those along the coast or on islands, still command significant prices compared to inland locations. This indicates a broad spectrum of value propositions for potential buyers and investors, ranging from the ultra-premium coastal markets to the more accessible inland markets, each with its unique appeal and investment profile.
+
+#### Recommended Actions for Stakeholders
+- For real estate investors, the visual data serves as a strategic guide. High-value coastal properties offer the potential for substantial returns due to their perennial demand driven by both their intrinsic aesthetic value and the limited availability of such prime locations. The recommendation for investors is to consider these high-cost areas for their long-term value retention and the lifestyle appeal they hold for prospective buyers.
+
+- Conversely, the inland market presents opportunities for diversified investment strategies. Investors are advised to consider these regions for their growth potential, driven by urban expansion, infrastructure development, and the appeal of a more cost-effective Californian lifestyle. Such investments may not yield immediate high returns like coastal properties, but they offer stability and the prospect of appreciation as demand in these areas grows.
+
+- Policymakers and urban planners can draw critical insights from this data. There is a pressing need for a balanced approach to housing development that ensures coastal regions do not become prohibitive for middle-income families while also fostering growth and accessibility in inland areas. Policies should be directed towards sustainable development that leverages the economic potential of the inland areas while preserving the cultural and environmental heritage of coastal locations.
+
+- For potential homeowners, the map provides an invaluable overview of the market landscape, enabling informed decision-making based on personal and financial considerations. Those seeking investment in a home are advised to weigh the premium of ocean proximity against the value propositions offered by inland properties, considering long-term goals and lifestyle preferences.
+
+### Story 2
+
+```{r fig.width=12, fig.height=8, warning=FALSE, message=FALSE, echo=FALSE}
+# Create a scatter plot with a more distinct color palette
+ggplot(housing, aes(x = median_income, y = median_house_value)) +
+  geom_point(aes(color = ocean_proximity), alpha = 0.6) +  # Color by ocean proximity
+  geom_smooth(method = "lm", color = "black", se = FALSE) +  # Add regression line
+  scale_color_brewer(palette = "Spectral", name = "Ocean Proximity") +  # Use a qualitative color palette
+  labs(title = "Relationship Between Median Income and Median House Value",
+       x = "Median Household Income ($K)",
+       y = "Median House Value ($K)") +
+  ylim(0, max(housing$median_house_value, na.rm = TRUE)) + 
+  theme_minimal() +
+  theme(legend.position = "right",
+        plot.title = element_text(size = 20, face = "bold"),
+        axis.title = element_text(size = 16),
+        legend.text = element_text(size = 14),
+        legend.title = element_text(size = 16, face = "bold"))
+```
+
+#### Significance of Income in Determining Housing Prices
+Transitioning from the geographical distribution of housing values, we now turn to the socioeconomic aspect of California's real estate landscape. In California's varied real estate market, the relationship between a household's earning power and the value of the home it can command is a pivotal factor. This is particularly relevant for those considering investment in property, as well as policymakers who should consider economic diversity when crafting housing initiatives.
+
+#### Interpreting the Scatterplot Data
+A scatterplot provides a visual representation of this relationship, showing a stark linearity, especially for inland areas. The trend line, which represents the average increase in housing values with income, is notably steeper within the inland data. This suggests that, for inland residents, an increase in income is likely to result in a more predictable, and potentially substantial, increase in housing value compared to those closer to the coast.
+
+#### Linearity in Inland Areas
+The pronounced linearity in inland areas could be a sign of a more uniform housing market where value increments align more closely with income increments. In these regions, economic growth directly translates to housing market buoyancy. As such, for real estate investors, inland properties represent a segment where traditional market dynamics—such as the direct relationship between income increase and housing value—are more clearly observed.
+
+#### Actions for Market Participants
+- Real estate investors, particularly those with inland interests, should focus on this correlation, as it presents a clearer path to predicting property value increases based on economic indicators. The predictability suggested by the data means that investments can be more precisely tailored to the expected economic trajectories of these regions.
+
+- On the other hand, policymakers must recognize that while this linearity indicates a healthy alignment between earnings and housing costs, it also raises concerns about affordability if income growth does not keep pace with economic development. Thus, they are tasked with ensuring that as local economies grow, housing costs do not outstrip what residents can afford.
+
+- For developers, this linearity is an opportunity to plan and build in anticipation of economic growth in these inland areas. By developing properties that cater to a growing middle class, they can contribute positively to the region’s development while also capitalizing on the expanding market.
+
+#### Recommendations for Potential Homebuyers
+For those looking to purchase homes, particularly in inland areas, this relationship between income and housing values is a valuable guide. It suggests that in these areas, their investment is likely to appreciate in line with local economic growth. As such, buying a home inland could be a financially sound decision for those expecting to benefit from rising local incomes.
+
+
+### Story 3
+
+```{r, warning=FALSE, echo=FALSE}
+# Categorize housing median age into six age groups
+housing <- housing %>%
+  mutate(age_group = case_when(
+    housing_median_age >= 0 & housing_median_age < 20 ~ "0-19",
+    housing_median_age >= 20 & housing_median_age < 30 ~ "20-29",
+    housing_median_age >= 30 & housing_median_age < 40 ~ "30-39",
+    housing_median_age >= 40 & housing_median_age < 50 ~ "40-49",
+    housing_median_age >= 50 & housing_median_age < 60 ~ "50-59",
+    housing_median_age >= 60 ~ "60+"
+  ))
+
+suppressMessages({
+  # Calculate the count of age groups by ocean proximity
+  age_group_by_proximity <- housing %>%
+    group_by(ocean_proximity, age_group, .groups = "drop") %>%
+    summarize(count = n()) %>%
+    group_by(ocean_proximity, .groups = "drop") %>%
+    mutate(prop = count / sum(count))
+})
+
+# Plot stacked bar plot with ColorBrewer palette
+ggplot(age_group_by_proximity, aes(x = ocean_proximity, y = prop, fill = age_group)) +
+  geom_bar(stat = "identity", width = 0.7) +
+  labs(title = "Age Group Distribution Across Ocean Proximities",
+       x = "Ocean Proximity",
+       y = "Proportion",
+       fill = "Age Group") +
+  scale_fill_brewer(palette = "PuBuGn") +  # Using ColorBrewer palette
+  theme_minimal() +
+  theme(plot.title = element_text(size = 18, face = "bold"),
+        axis.title = element_text(size = 12),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+#### Unpacking the Age Distribution
+Transitioning from the analysis of geographical location and socioeconomic factors, we now shift towards another crucial aspect of California's real estate landscape: the age distribution across different regions. Understanding how age demographics vary across geographies provides valuable insights into housing trends, consumer behavior, and community requirements. Let's unpack the age distribution to gain a deeper understanding of its implications on the housing market.
+
+#### Inland Trends and Youthful Populations
+A standout observation is the pronounced representation of younger age groups in the inland regions. These areas are characterized by a larger proportion of individuals under the age of 39. This suggests a vibrant, potentially family-oriented demographic, which could be due to more affordable housing options, attracting younger individuals and families who are in the early stages of career and family development.
+
+#### Coastal and Bay Areas: A Diverse Age Mix
+Moving closer to the water, in Near Bay and Less than One Hour from Ocean categories, we see a more diverse age mix, with no single age group dominating. This points to a more varied population with a range of lifestyle needs and preferences, likely reflective of a mix of urban centers with both established and emerging neighborhoods.
+
+#### The Allure of the Coast and Mature Residents
+Near the ocean, there's a relatively higher presence of the 40-59 age demographic, indicating these areas may appeal more to individuals in their mid-career or those approaching retirement who are attracted by the amenities and lifestyle that coastal living provides. The ability to afford homes in these more expensive locales often comes later in life, which could account for the larger proportions of these age groups.
+
+#### Exclusive Islands: An Older Demographic
+Interestingly, on islands, the population skews towards the 50-59 age group. This could reflect a combination of high property values, a desire for exclusive living, and the appeal of a peaceful retirement setting.
+
+#### Implications for Real Estate and Community Services
+- For real estate professionals, recognizing these age-related trends is crucial for targeting the right markets. Inland areas might benefit from developments that cater to young families and first-time homebuyers. Community planners and businesses should also take note, as these regions may have a higher demand for schools, childcare, and starter homes.
+
+- In contrast, coastal and island regions should consider amenities that cater to older demographics, such as leisure and wellness centers, healthcare facilities, and luxury downsizing options. Real estate in these areas may also require a focus on higher-quality finishes and features that appeal to more established buyers.
+
+#### Strategic Recommendations for Stakeholders
+Developers and city planners should use this data to anticipate and meet the evolving needs of different age demographics. Policymakers are advised to ensure that community resources align with the demographic profiles of these areas. For investors, this information can guide decisions about where to build and what kind of housing stock to invest in, ensuring alignment with the community's age dynamics.
+
+
+
